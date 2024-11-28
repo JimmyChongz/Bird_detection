@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLOv7 Object Detection</title>
+</head>
+<body>
+    <h1>YOLOv7 Object Detection</h1>
+    <form id="uploadForm" action="/predict" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required />
+        <input type="submit" value="Upload and Predict" />
+    </form>
+
+    <h2>Processed Image:</h2>
+    <img id="resultImage" style="max-width: 100%;" />
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        form.onsubmit = async function(event) {
+            event.preventDefault();
+
+            let formData = new FormData(form);
+            let response = await fetch('/predict', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.ok) {
+                let blob = await response.blob();
+                let imgURL = URL.createObjectURL(blob);
+                document.getElementById('resultImage').src = imgURL;
+            } else {
+                alert('Error: ' + response.statusText);
+            }
+        };
+    </script>
+</body>
+</html>
