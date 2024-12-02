@@ -25,7 +25,7 @@ def predict():
 
     # 檢查檔案類型
     file_ext = file.filename.rsplit('.', 1)[-1].lower()
-    if file_ext not in ['jpg', 'jpeg', 'png', 'mp4']:
+    if file_ext not in ['jpg', 'jpeg', 'png', 'mp4', 'mov']:
         return jsonify({'error': 'Unsupported file type'}), 400
 
     # 儲存上傳的檔案
@@ -62,6 +62,8 @@ def predict():
     # 判斷回傳內容（圖片或影片）
     if file_ext == 'mp4':
         return send_file(result_file_path, mimetype='video/mp4', as_attachment=False)
+    elif file_ext == 'mov':
+        return send_file(result_file_path, mimetype='video/mov', as_attachment=False)
     else:
         return send_file(result_file_path, mimetype='image/jpeg', as_attachment=False)
 
