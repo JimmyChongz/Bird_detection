@@ -93,10 +93,14 @@ def detect(save_img=False):
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
                 # Print results
                 for c in det[:, -1].unique():
-                    n = (det[:, -1] == c).sum()  # detections per class
-                    s += f"{n} {names[int(c)]}{'s' * (n > 1)}"  # add to string
+                    # n = (det[:, -1] == c).sum()  # detections per class
+                    conf = det[det[:, -1] == c][:, 4]  # 取得該類別的所有自信度
+                    n = (conf >= 0.4).sum()  # 只累加自信度大於或等於 0.4 的檢測框數量
+                    s += f"{n} {names[int(c)]}{'s' * (n > 1)}" # add to string
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
+                    if conf < 0.4:  # 忽略自信值低於 0.4 的物件
+                        continue
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
