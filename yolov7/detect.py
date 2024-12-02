@@ -1,7 +1,7 @@
 import argparse
 import time
 from pathlib import Path
-
+import numpy as np
 import cv2
 import torch
 import torch.backends.cudnn as cudnn
@@ -66,8 +66,13 @@ def detect(save_img=False):
     old_img_w = old_img_h = imgsz
     old_img_b = 1
 
+    total_count = 0  # Initialize total count of detected objects
+    frame_count = 0  # Initialize the frame count for calculating the interval
+
     t0 = time.time()
+    start_time = time.time() # 记录开始时间
     for path, img, im0s, vid_cap in dataset:
+        elapsed_seconds = int(time.time() - start_time) # 取整秒数
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -107,14 +112,23 @@ def detect(save_img=False):
             save_path = str(save_dir / p.name)  # img.jpg
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+            frame_detected = 0  # Reset frame detection counter for the current frame
+            class_count = {}
+
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+                
+                # Count detections per class
+                for *xyxy, conf, cls in reversed(det):
+                    cls_name = names[int(cls)]
+                    class_count[cls_name] = class_count.get(cls_name, 0) + 1
 
                 # Print results
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+                    frame_detected += n  # Count the detections in the current frame
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
@@ -127,7 +141,21 @@ def detect(save_img=False):
                     if save_img or view_img:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
-
+                # Display count of each class
+                for class_name, count in class_count.items():
+                    cv2.putText(im0, f'{class_name}: {count}', (10, 30 + 30 * list(class_count.keys()).index(class_name)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        
+                cv2.putText(im0, f'Total Count: {total_count}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+                """
+                記錄每30幀數的加總
+                """
+                cv2.putText(im0, f'frame Count: {frame_count}', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2) # 紀錄幀數
+                cv2.putText(im0, f'Time: {elapsed_seconds} s', (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2) # 在图像上显示当前经过的秒数
+            # Update total count based on frame detection
+            if frame_count % 30 == 0:  # Every 30 frames, update the total count
+                total_count += frame_detected
+                
             # Print time (inference + NMS)
             print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
 
@@ -156,11 +184,14 @@ def detect(save_img=False):
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
 
+            frame_count += 1  # Increment the frame count for every processed frame
+
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
 
-    print(f'Done. ({time.time() - t0:.3f}s)')
+    print(f'Done. ({time.time() - t0:.3f}s)')  
+
 
 
 if __name__ == '__main__':
