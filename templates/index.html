@@ -23,6 +23,7 @@
                 <video id="resultVideo" controls style="max-width: 100%; display: none;"></video>
                 <img id="resultImage" style="max-width: 100%; display: none;" />
             </div>
+            <p id="detectResult"></p>
             <a id="downloadLink" class="btn btn-success mt-3" style="display: none;">Download Result</a>
         </div>
     </div>
@@ -35,10 +36,12 @@
             const loading = document.getElementById('loading');
             const resultVideo = document.getElementById('resultVideo');
             const resultImage = document.getElementById('resultImage');
+            const detectResult = document.getElementById('detectResult');
             const downloadLink = document.getElementById('downloadLink');
             loading.style.display = 'block';
             resultVideo.style.display = 'none';
             resultImage.style.display = 'none';
+            detectResult.style.display = 'none';
             downloadLink.style.display = 'none';
 
             let formData = new FormData(form);
@@ -47,6 +50,9 @@
                 let response = await fetch('/predict', {
                     method: 'POST',
                     body: formData
+                });
+                let response2 = await fetch('/result', {
+                    method: 'POST'
                 });
 
                 loading.style.display = 'none';
@@ -67,6 +73,17 @@
                     downloadLink.href = resultURL;
                     downloadLink.download = contentType.includes('video') ? 'processed_video.mp4' : 'processed_image.jpg';
                     downloadLink.style.display = 'block';
+                } else {
+                    let errorText = await response.text();
+                    alert('Error: ' + errorText);
+                }
+
+                if (response2.ok) {
+                    let res = await response2.json();
+                    detectResult.textContent = res;
+                    detectResult.style.display = 'block';
+                    detectResult.style.backgroundColor = 'pink';
+                    detectResult.style.marginTop = '20px'
                 } else {
                     let errorText = await response.text();
                     alert('Error: ' + errorText);

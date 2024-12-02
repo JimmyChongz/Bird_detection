@@ -14,6 +14,11 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def index():
     return render_template('index.html')
 
+@app.route('/result', methods=['POST'])
+def result():
+    with open('detect_result.txt', "r") as f:
+        return jsonify(f.read()), 200
+
 @app.route('/predict', methods=['POST'])
 def predict():
     if 'file' not in request.files:
