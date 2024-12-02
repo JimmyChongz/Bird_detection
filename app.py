@@ -40,7 +40,7 @@ def predict():
 
     # YOLOv7 偵測命令
     detect_script = './yolov7/detect.py'
-    weights_path = './yolov7/weights/best.pt'
+    weights_path = './yolov7/weights/yolov7.pt'
 
     try:
         subprocess.run(
