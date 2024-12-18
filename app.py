@@ -3,6 +3,7 @@ import os
 import subprocess
 import uuid
 import glob
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -34,7 +35,8 @@ def predict():
         return jsonify({'error': 'Unsupported file type'}), 400
 
     # 儲存上傳的檔案
-    file_name = f"{uuid.uuid4().hex}.{file_ext}"
+    current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+    file_name = f"{current_time}.{file_ext}"
     file_path = os.path.join(UPLOAD_FOLDER, file_name)
     file.save(file_path)
 

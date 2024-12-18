@@ -12,8 +12,58 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
     scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
-def detect(save_img=False):
-    source, weights, view_img, save_txt, imgsz, trace = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size, not opt.no_trace
+def crop_and_save(image, detections):
+    """
+    根據偵測結果裁切圖片並儲存，並將裁切後的圖片分割為三等份。
+    
+    參數：
+    - image (numpy.ndarray): 原始圖片。
+    - detections (list): 偵測結果，格式為 [[x_min, y_min, x_max, y_max, conf, cls], ...]。
+    
+    回傳：
+    - cropped_images (list): 分割後的三等份圖片列表。
+    - bounds (tuple): 裁切範圍，格式為 (x_min, y_min, x_max, y_max)。
+    """
+    # 初始化邊界
+    x_min, y_min, x_max, y_max = float('inf'), float('inf'), float('-inf'), float('-inf')
+
+    # 計算包含所有物件的邊界矩形
+    for *xyxy, conf, cls in reversed(detections):
+        x_min = min(x_min, xyxy[0])
+        y_min = min(y_min, xyxy[1])
+        x_max = max(x_max, xyxy[2])
+        y_max = max(y_max, xyxy[3])
+
+    # 確保座標是整數且在圖片範圍內
+    x_min = max(0, int(x_min))
+    y_min = max(0, int(y_min))
+    x_max = min(image.shape[1], int(x_max))
+    y_max = min(image.shape[0], int(y_max))
+
+    # 裁切圖片
+    cropped_img = image[y_min:y_max, x_min:x_max]
+    output_dir = Path('./cropped_images')
+    output_dir.mkdir(parents=True, exist_ok=True)
+    # 根據圖片是直的還是橫的進行切割
+    height, width = cropped_img.shape[:2]
+    
+    piece = 3
+    if height > width:  # 直的，從上到下切成 piece 等份
+        slice_height = height // piece
+        for i in range(piece):
+            start_y = i * slice_height
+            end_y = (i + 1) * slice_height if i < 2 else height
+            cv2.imwrite(f"{output_dir}/img{i+1}.jpg", cropped_img[:, start_y:end_y])
+    else:  # 橫的，從左到右切成 piece 等份
+        slice_width = width // piece
+        for i in range(piece):
+            start_x = i * slice_width
+            end_x = (i + 1) * slice_width if i < 2 else width
+            cv2.imwrite(f"{output_dir}/img{i+1}.jpg", cropped_img[:, start_x:end_x])
+    print("已將裁剪後的圖片存到./cropped_images")
+    
+def detect(__source, save_img=False):
+    source, weights, view_img, save_txt, imgsz, trace = __source, opt.weights, opt.view_img, opt.save_txt, opt.img_size, not opt.no_trace
     save_img = not opt.nosave and not source.endswith('.txt')  # save inference images
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://', 'https://'))
@@ -93,14 +143,18 @@ def detect(save_img=False):
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
                 # Print results
                 for c in det[:, -1].unique():
-                    # n = (det[:, -1] == c).sum()  # detections per class
-                    conf = det[det[:, -1] == c][:, 4]  # 取得該類別的所有自信度
-                    n = (conf >= 0.4).sum()  # 只累加自信度大於或等於 0.4 的檢測框數量
+                    n = (det[:, -1] == c).sum()  # detections per class
+                    # conf = det[det[:, -1] == c][:, 4]  # 取得該類別的所有自信度
+                    # n = (conf >= 0.4).sum()  # 只累加自信度大於或等於 0.4 的檢測框數量
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}" # add to string
+
+                if n > 10:
+                    crop_and_save(im0, det)
+                    detect('./cropped_images')
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-                    if conf < 0.4:  # 忽略自信值低於 0.4 的物件
-                        continue
+                    # if conf < 0.4:  # 忽略自信值低於 0.4 的物件
+                    #     continue
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
@@ -167,7 +221,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         if opt.update:  # update all models (to fix SourceChangeWarning)
             for opt.weights in ['yolov7.pt']:
-                detect()
+                detect(opt.source)
                 strip_optimizer(opt.weights)
         else:
-            detect()
+            detect(opt.source)
