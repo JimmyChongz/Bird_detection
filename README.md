@@ -7,17 +7,16 @@ This project is a web application developed using **Flask** to detect and count 
 - **Web Interface**: Built with Flask, allowing users to easily upload pictures or MP4 videos for detection.
 - **Trained on 7,000+ Images**: The model is trained on a dataset of over 7,000 images of migratory birds for improved accuracy.
 
-## Installation
-
-### Prerequisites
-Ensure you have Python 3.7+ installed, and install the following dependencies:
-
+## Build environment
 ```bash
+conda create -n yolov7 python=3.11
+conda activate yolov7
+cd yolov7
 pip install -r requirements.txt
+pip install torch==2.5.1 torchvision==0.20.1+cu124 --index-url https://download.pytorch.org/whl/cu124
 ```
 Then, run the following command to start the project.
 ```bash
 flask run
 ```
 This project will be deployed on your `localhost:5000` .
-
